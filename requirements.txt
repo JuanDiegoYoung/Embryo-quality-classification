@@ -1,0 +1,15 @@
+numpy
+matplotlib
+tensorflow
+pathlib
+openpyxl
+segmentation-models-pytorch
+scikit-learn
+xgboost
+scikit-image
+opencv
+
+json
+typing
+tqdm
+scipy
