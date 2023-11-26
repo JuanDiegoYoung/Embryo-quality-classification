@@ -1,4 +1,4 @@
-# embryo_classification
+# Embryo Classification of Gardner Score
 
 This study aims to develop a series of machine learning model to predict the Gardner Score of an embryo. The Gardner Score is a value assigned to the three main regions of the embryo, meaning, the Expansion (size of the embryo and width of the Pellucid Zone), the Inner Cellular Mass (main cluster of cells), and Trophectoderm (cells which serve as energy supply for the embryo). We consider a database of 249 embryos in the blastocyst stage (5th-6th day after insemination) each with its corresponding labeled masks for each region, and its Gardner Score. Images are segmented using a U-net and three methods are developed to find which one makes the best classification:
 
@@ -12,7 +12,11 @@ This study aims to develop a series of machine learning model to predict the Gar
 
 (See notebooks/segmented_embryo_classification)
 
-This first method is composed by three different stages:
+This first method is composed by a segmentation, followed by three feature extraction methods stages. The segmentation is carried out by the database provided by Dr. Parvaneh Saeedi from Simon Fraser University (check article [https://ieeexplore.ieee.org/document/8803139]).
+
+One classification is executed with an array with all the features, and another one with a previously dimensionality reduced process (PCA).
+
+Also, classification is carried out for each region (for example: ICM) with features of all regions (ICM, TE, and ZP), and another classification is carried out with the features of the chosen region (only ICM's features, if ICM region is chosen).
 
 ### Textural feature extraction
 
@@ -38,12 +42,40 @@ These features are the result of unwrapping the masks from the center of the emb
 
 ## Second method
 
-(See embedded_embryo_classification)
+(See notebooks/embedded_embryo_classification)
 
 This method uses different networks (VGG, Resnet50 and InceptionV3) removing the last fully connected layers, keeping the convolutional architecture, and saving the last output as features.
+
+Again, the classification branches with and without PCA, and branches again with all features, and the region specific features. It branches one more time using segmented images, and not segmented images.
 
 <img width="712" alt="Captura de pantalla 2023-11-26 a la(s) 16 28 52" src="https://github.com/JuanDiegoYoung/embryo_classification/assets/81267941/4ee4f8e6-5cf1-4450-9225-57410170fe9d">
 
 In this example there is a VGG architecture, and the final fully connected layers (purple ones) are removed.
 
+## Third method
 
+(See notebooks/end_to_end_embryo_classification)
+
+This last method is the most straigthforward: using the embryo images to train the different networks, and make a classification for the quality of each region.
+
+<img width="657" alt="Captura de pantalla 2023-11-26 a la(s) 16 32 10" src="https://github.com/JuanDiegoYoung/embryo_classification/assets/81267941/7436bcf0-c928-4591-8a73-5e3932564613">
+
+This method also branches using the segmented images, and the not segmented images.
+
+## Remaining things to do
+
+ - Correct a bug where the fully connected layers are not removed in the embedding process
+ - Add the segmented embedding extraction
+ - Add the segmented images for the end to end classification
+
+ - Add all single-region classifications
+
+ - Run all experiments and choose the best result
+
+ - Carry out uncertainty estimation
+
+ - Realize unitary tests
+
+ - Create src files
+
+ - Create another repository with the database provided by the CEM (Centro de Esterilidad de Montevideo), and execute the classification of the Gardnger score, prediction of probability of pregnancy, and uncertainty estimation
