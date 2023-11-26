@@ -10,6 +10,8 @@ This study aims to develop a series of machine learning model to predict the Gar
 
 ## First method
 
+(See notebooks/segmented_embryo_classification)
+
 This first method is composed by three different stages:
 
 ### Textural feature extraction
@@ -33,5 +35,15 @@ The geomeric features consist of the volume and perimeter of the three different
 These features are the result of unwrapping the masks from the center of the embryo in a polar fashion. The result is a signal for the ICM, another one for the TE, and another for the ZP. From there different measures can be obtained: maximum width, maximum height, also the minimum, the mean, and the standard deviation. Also, a cellular analysis is performed: it consist in the detection of peaks and valleys in the ICM and TE signals. Each cells consist in a peak and its two adjacent valleys, and then some features are extracted: height, width, parabolic coefficient, and extendend width (approximating the cell as a parabole). Lastly, the number of cells its calculated.
 
 <img width="281" alt="Captura de pantalla 2023-11-26 a la(s) 16 13 47" src="https://github.com/JuanDiegoYoung/embryo_classification/assets/81267941/21668382-8cb8-4232-ad07-bfe733dff3e8">
+
+## Second method
+
+(See embedded_embryo_classification)
+
+This method uses different networks (VGG, Resnet50 and InceptionV3) removing the last fully connected layers, keeping the convolutional architecture, and saving the last output as features.
+
+<img width="712" alt="Captura de pantalla 2023-11-26 a la(s) 16 28 52" src="https://github.com/JuanDiegoYoung/embryo_classification/assets/81267941/4ee4f8e6-5cf1-4450-9225-57410170fe9d">
+
+In this example there is a VGG architecture, and the final fully connected layers (purple ones) are removed.
 
 
