@@ -65,10 +65,6 @@ This method also branches using the segmented images, and the not segmented imag
 ## Remaining things to do
 
  - Correct a bug where the fully connected layers are not removed in the embedding process
- - Add the segmented embedding extraction
- - Add the segmented images for the end to end classification
-
- - Add all single-region classifications
 
  - Run all experiments and choose the best result
 
