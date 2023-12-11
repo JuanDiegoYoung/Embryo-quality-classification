@@ -8,8 +8,11 @@ scikit-learn
 xgboost
 scikit-image
 opencv
+torch
+torchvision
 
 json
 typing
 tqdm
 scipy
+pickle
