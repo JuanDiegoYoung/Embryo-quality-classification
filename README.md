@@ -72,4 +72,4 @@ This method also branches using the segmented images, and the not segmented imag
 
  - Create src files
 
- - Create another repository with the database provided by the CEM (Centro de Esterilidad de Montevideo), and execute the classification of the Gardnger score, prediction of probability of pregnancy, and uncertainty estimation
+ - Repeat the experiments with the database provided by the CEM (Centro de Esterilidad de Montevideo), and execute the classification of the Gardnger score, prediction of probability of pregnancy, and uncertainty estimation.
