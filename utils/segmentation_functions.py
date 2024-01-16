@@ -7,7 +7,7 @@ import json                         # JSON for data serialization
 from tqdm import tqdm               # tqdm for creating progress bars
 from typing import Tuple, List, Union  # Typing for type hinting in function signatures
 import pickle
-
+import math
 
 # Model Training and Evaluation
 from sklearn.experimental import enable_halving_search_cv  # noqa
@@ -28,18 +28,19 @@ from sklearn.model_selection import KFold  # K-Fold cross-validation
 # Image Processing and Feature Extraction
 from skimage.feature import graycomatrix, graycoprops  # Image texture features using co-occurrence matrix
 from skimage import exposure         # Image exposure adjustment
+from skimage.transform import resize
 from scipy import ndimage            # Multi-dimensional image processing
 import skimage.measure              # Image measurement and analysis
 from tensorflow.keras.preprocessing.image import img_to_array, load_img  # Image preprocessing using Keras
 
 from IPython.display import clear_output
 
+# Signal Processing
+from scipy.signal import find_peaks, savgol_filter  # Signal processing functions in SciPy
+
 #------------------------------------------------------------------------------------------------------------
 
 ## TEXTURE FEATURE EXTRACTION FUNCTIONS
-
-# Signal Processing
-from scipy.signal import find_peaks, savgol_filter  # Signal processing functions in SciPy
 
 def texture_feature_calculation(imagen_float: np.ndarray) -> list:
     """
@@ -390,7 +391,10 @@ def individual_cell_feature_extractor(cells: List[np.ndarray], vis: bool = False
     for cell in cells:
         # Fit a parabolic curve to the cell signal
         x = np.arange(len(cell))
-        a = np.polyfit(x, cell, 2)
+        try:
+            a = np.polyfit(x, cell, 2)
+        except:
+            a=[0,0,0]
         pfit = a[0] * x**2 + a[1] * x + a[2]
 
         # If the parabolic coefficient is negative, consider it valid
@@ -412,8 +416,12 @@ def individual_cell_feature_extractor(cells: List[np.ndarray], vis: bool = False
     def calculate_stats(data: List[Union[int, float]]) -> List[float]:
         mean = np.mean(data)
         std = np.std(data)
-        maximum = np.max(data)
-        minimum = np.min(data)
+        if len(data) > 0:
+            maximum = np.max(data)
+            minimum = np.min(data)
+        else:
+            maximum = 0
+            minimum = 0
         return [mean, std, maximum, minimum]
 
     # Calculate statistics for each feature
@@ -429,8 +437,8 @@ def individual_cell_feature_extractor(cells: List[np.ndarray], vis: bool = False
 
 def extract_topographic_features(
     img: np.ndarray,
-    arguments: List[Union[int, float]],
-    vis_arguments: List[Union[bool, int, float]],
+    arguments: list,
+    vis_arguments:list,
     is_ICM: bool = False,
     is_ZP: bool = False,
     is_TE: bool = False
@@ -470,10 +478,13 @@ def extract_topographic_features(
         total_features = [mean_cells, std_cells]
     else:
         # If not ZP, extract individual cell features
-        cells = cell_select(signal, signal_thickness, vis_arguments[2], arguments)
-        cell_features = individual_cell_feature_extractor(cells, vis_arguments[1])
+        cells = cell_select(signal, signal_thickness, vis_arguments[1], arguments)
+        cell_features = individual_cell_feature_extractor(cells, vis_arguments[2])
         # Combine individual cell features with overall statistics
         total_features = cell_features + [n_cells, mean_cells, std_cells]
+
+    if is_ICM:
+        total_features = [0 if math.isnan(value) else value for value in total_features]
 
     return total_features
 
@@ -574,7 +585,10 @@ def unwrapper(
 
 ## IMAGE FUNCTIONS
 
-def segmentate_images(image: np.ndarray, label: np.ndarray, vis: bool = False) -> np.ndarray:
+def segmentate_images(image: np.ndarray,
+                      label: np.ndarray,
+                      vis: bool = False,
+                      size : Tuple =(256,256)) -> np.ndarray:
     """
     Segments an image based on a given label.
 
@@ -586,9 +600,14 @@ def segmentate_images(image: np.ndarray, label: np.ndarray, vis: bool = False) -
     Returns:
     - masked_image (np.ndarray): Masked image after segmentation.
     """
+
+    # Resize if images are from different types
+    if len(label[0][0]) != image.shape[1] or len(label[0]) != image.shape[0]:
+        image = resize(image, (size[0], size[1], 1), mode='constant', preserve_range=True, anti_aliasing=True)
+        image = np.swapaxes(np.swapaxes(image,0,2),1,2)
+
     # Element-wise multiplication of the image and label to segment it
     masked_image = image * label
-    
     return masked_image
 
 def mix_labels(images: List[np.ndarray]) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
@@ -694,7 +713,7 @@ def padder(img: np.ndarray) -> np.ndarray:
 
     return output_img
 
-def load_image(region: str, index: int) -> np.ndarray:
+def load_image(region: str, index: int, jpeg=False) -> np.ndarray:
     """
     Loads and preprocesses an image from a specified region and index.
 
@@ -705,7 +724,10 @@ def load_image(region: str, index: int) -> np.ndarray:
     Returns:
     - chosen_region (np.ndarray): Preprocessed image.
     """
-    chosen_region = img_to_array(load_img(str(region) + '/' + str(index) + '.bmp', grayscale=True)).squeeze() / 255.0
+    if jpeg:
+        chosen_region = img_to_array(load_img(str(region) + '/' + str(index) + '.jpg', grayscale=True)).squeeze() / 255.0
+    else:
+        chosen_region = img_to_array(load_img(str(region) + '/' + str(index) + '.bmp', grayscale=True)).squeeze() / 255.0
     return chosen_region
 
 def plot_images(imgs: List[np.ndarray], titles: bool = False) -> None:
@@ -859,7 +881,6 @@ def mix_features(textural_features : list, geometric_features : list, topographi
     """
     # Combine different feature types
     all_mixed_features = textural_features + geometric_features + topographic_features
-    
     # Flatten the nested list into a single list
     features = []
     [features.extend(sublist) for sublist in all_mixed_features]
@@ -869,7 +890,9 @@ def mix_features(textural_features : list, geometric_features : list, topographi
     
     return features
 
-def feature_extraction_full_dataset(arguments_zones : list, vis_arguments : bool) -> list:
+def feature_extraction_full_dataset(arguments_zones : list,
+                                    vis_arguments : list,
+                                    n_data : int = 250) -> list:
     """
     Extracts features from a full dataset of images.
 
@@ -890,6 +913,64 @@ def feature_extraction_full_dataset(arguments_zones : list, vis_arguments : bool
         img_TE = load_image('data/BlastsOnline/GT_TE', index)
         img_ZP = load_image('data/BlastsOnline/GT_ZP', index)
         img_Blast = load_image('data/BlastsOnline/Images', index)
+
+        images = [img_ICM, img_ZP, img_TE]
+
+        # Segment images into different layers
+        all_labels, all_masked_images = multi_layered_segmentation(images, img_Blast)
+
+        # Extract geometric features
+        geometric_features, independent_geometric_features = geometric_feature_extraction(all_labels)  # 4 x 3
+
+        # Extract textural features
+        textural_features = textural_feature_extraction(all_masked_images)
+
+        # Extract topographic features
+        topographic_features = extract_all_topographic_features(images, arguments_zones, vis_arguments)
+
+        # Mix different features into a single vector
+        features = mix_features(textural_features, geometric_features, topographic_features)
+
+        # Append the feature vector to the list
+        all_features.append(features)
+
+        # All the feature vector correspondent of each region
+        all_separated_features.append([textural_features,independent_geometric_features,topographic_features])
+
+    # Save features to a JSON file
+    with open('data/segmented_features/features.json', 'w') as archivo:
+        json.dump(all_features, archivo)
+
+    with open('data/segmented_features/independent_features.pkl', 'wb') as archivo:
+        pickle.dump(all_separated_features, archivo)
+
+    return all_features, all_separated_features
+
+def feature_extraction_full_dataset_CEM(indexes: list,
+                                        arguments_zones : list,
+                                        vis_arguments : list,
+                                        n_data : int = 250) -> list:
+    """
+    Extracts features from a full dataset of images.
+
+    Parameters:
+    - arguments_zones (list): List of arguments for processing each structure.
+    - vis_arguments (list): List of arguments for visualization.
+
+    Returns:
+    - all_features (list): List of feature vectors for each image in the dataset.
+    """
+
+    all_features = []
+    all_separated_features = []
+
+    # Loop through each image in the dataset
+    for index in tqdm(indexes):
+        # Loading images for different categories/types from respective directories
+        img_ICM = load_image('data/segmented_CEM_database/GT_ICM', index)  # Loading an image from 'GT_ICM' directory
+        img_TE = load_image('data/segmented_CEM_database/GT_TE', index)  # Loading an image from 'GT_TE' directory
+        img_ZP = load_image('data/segmented_CEM_database/GT_ZP', index)  # Loading an image from 'GT_ZP' directory
+        img_Blast = load_image('data/CEM_database', index, jpeg=True)  # Loading an image from 'Images' directory
 
         images = [img_ICM, img_ZP, img_TE]
 
@@ -1057,6 +1138,7 @@ def choose_region(zone: str, n_data: int, features: list, blast_quality: list) -
         raise ValueError("Invalid zone. Zone must be 'ICM', 'TE', or 'ZP'.")
 
     return X_data, y_data
+
 
 def convert_to_number(x : str) -> int:
     """
