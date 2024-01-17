@@ -886,7 +886,7 @@ def mix_features(textural_features : list, geometric_features : list, topographi
     [features.extend(sublist) for sublist in all_mixed_features]
     
     # Convert features to integers
-    features = [int(x) for x in features]
+    features = [int(0) if math.isnan(value) else int(value) for value in features]
     
     return features
 
